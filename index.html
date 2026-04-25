@@ -832,7 +832,7 @@ margin-bottom: 8px;
       return;
     }
 
-    if (localStorage.getItem('gumigum_signed')) {
+    if (localStorage.getItem('gumigum_signed_v2')) {
       document.getElementById('alreadyMsg').style.display = 'block';
       return;
     }
@@ -844,7 +844,7 @@ margin-bottom: 8px;
     try {
       const ok = await addSig(name, comment);
       if (!ok) throw new Error('failed');
-      localStorage.setItem('gumigum_signed', '1');
+      localStorage.setItem('gumigum_signed_v2', '1');
       const sigs = await loadSigs();
       renderSigs(sigs);
       document.getElementById('successMsg').style.display = 'block';
@@ -918,7 +918,7 @@ margin-bottom: 8px;
     // הצג מה שיש בcache מיידית
     const cached = loadCache();
     if (cached.length > 0) renderSigs(cached);
-    if (localStorage.getItem('gumigum_signed')) {
+    if (localStorage.getItem('gumigum_signed_v2')) {
       document.getElementById('alreadyMsg').style.display = 'block';
     }
     // טען מהשרת
