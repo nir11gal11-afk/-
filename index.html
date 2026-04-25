@@ -502,20 +502,21 @@ z-index: 1;
 }
 
 .progress-bar-bg {
-background: rgba(255,255,255,0.1);
+background: rgba(255,255,255,0.15);
 border-radius: 50px;
-height: 16px;
+height: 20px;
 overflow: hidden;
-border: 1px solid rgba(255,255,255,0.05);
+border: 2px solid rgba(255,255,255,0.2);
 }
 
 .progress-bar-fill {
 height: 100%;
-background: linear-gradient(90deg, var(–purple), var(–red), var(–yellow));
+background: linear-gradient(90deg, #6B2FA0, #E8323C, #FFD700);
 border-radius: 50px;
-transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+transition: width 1s ease;
 position: relative;
 overflow: hidden;
+min-width: 4px;
 }
 
 .progress-bar-fill::after {
@@ -619,6 +620,7 @@ margin-bottom: 8px;
   </div>
   <div class="progress-labels">
     <span id="progressText">0 חתמו</span>
+    <span id="progressPct">0%</span>
     <span>מטרה: 1,000 🎯</span>
   </div>
 </div>
@@ -698,11 +700,6 @@ margin-bottom: 8px;
 </div>
 
 <script>
-  // ===== JSONBIN CONFIG =====
-  const BIN_ID = '69e753fcaaba882197208856';
-  const MASTER_KEY = '$2a$10$Puz/84Ix7DsoxiMJmVg/J.F1dARFQg9tE36u2RRKejqCcEKxZZ9BO';
-  const BIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
-
   // ===== COLORS for avatars =====
   const COLORS = ['#E8323C','#6B2FA0','#1A73C7','#FF6B35','#2ECC71','#F39C12','#9B59B6','#E74C3C'];
 
@@ -722,25 +719,41 @@ margin-bottom: 8px;
     return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
-  // ===== JSONBIN API =====
+  // ===== SUPABASE CONFIG =====
+  const SUPABASE_URL = 'https://fbxvqgtspdpeyvqsdskz.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZieHZxZ3RzcGRwZXl2cXNkc2t6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxMTE0OTQsImV4cCI6MjA5MjY4NzQ5NH0.sQ7P8wko73-_ZOKUJBmkLe2fF-n-HOudU_EfiIwqvcg';
+
+  // ===== LOCAL CACHE =====
+  const CACHE_KEY = 'gumigum_cache_v3';
+  function saveCache(sigs) { try { localStorage.setItem(CACHE_KEY, JSON.stringify(sigs)); } catch {} }
+  function loadCache() { try { return JSON.parse(localStorage.getItem(CACHE_KEY)) || []; } catch { return []; } }
+
+  // ===== SUPABASE API =====
   async function loadSigs() {
-    const res = await fetch(BIN_URL + '/latest', {
-      headers: { 'X-Master-Key': MASTER_KEY }
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/signatures?select=*&order=created_at.asc`, {
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`
+      }
     });
-    const data = await res.json();
-    const arr = data.record || [];
-    return arr.filter(s => s && s.name);
+    const sigs = await res.json();
+    const result = sigs.map(s => ({ name: s.name, comment: s.comment, ts: new Date(s.created_at).getTime() }));
+    saveCache(result);
+    return result;
   }
 
-  async function saveSigs(sigs) {
-    await fetch(BIN_URL, {
-      method: 'PUT',
+  async function addSig(name, comment) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/signatures`, {
+      method: 'POST',
       headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
         'Content-Type': 'application/json',
-        'X-Master-Key': MASTER_KEY
+        'Prefer': 'return=minimal'
       },
-      body: JSON.stringify(sigs)
+      body: JSON.stringify({ name, comment })
     });
+    return res.ok;
   }
 
   // ===== RENDER =====
@@ -759,8 +772,11 @@ margin-bottom: 8px;
     animateCounter(count);
 
     const pct = Math.min((count / 1000) * 100, 100);
-    document.getElementById('progressFill').style.width = pct + '%';
+    const fillEl = document.getElementById('progressFill');
+    fillEl.style.width = pct + '%';
+    fillEl.style.minWidth = count > 0 ? '8px' : '0';
     document.getElementById('progressText').textContent = count + ' חתמו';
+    document.getElementById('progressPct').textContent = Math.round(pct) + '%';
 
     list.innerHTML = '';
     if (count === 0) {
@@ -826,10 +842,10 @@ margin-bottom: 8px;
     btn.disabled = true;
 
     try {
-      const sigs = await loadSigs();
-      sigs.push({ name, comment, ts: Date.now() });
-      await saveSigs(sigs);
+      const ok = await addSig(name, comment);
+      if (!ok) throw new Error('failed');
       localStorage.setItem('gumigum_signed', '1');
+      const sigs = await loadSigs();
       renderSigs(sigs);
       document.getElementById('successMsg').style.display = 'block';
       document.getElementById('nameInput').value = '';
@@ -899,22 +915,30 @@ margin-bottom: 8px;
 
   // ===== INIT =====
   async function init() {
+    // הצג מה שיש בcache מיידית
+    const cached = loadCache();
+    if (cached.length > 0) renderSigs(cached);
+    if (localStorage.getItem('gumigum_signed')) {
+      document.getElementById('alreadyMsg').style.display = 'block';
+    }
+    // טען מהשרת
     try {
       const sigs = await loadSigs();
       renderSigs(sigs);
-      if (localStorage.getItem('gumigum_signed')) {
-        document.getElementById('alreadyMsg').style.display = 'block';
-      }
     } catch(e) {
-      document.getElementById('counterNum').textContent = '...';
+      if (cached.length === 0) document.getElementById('counterNum').textContent = '...';
     }
   }
 
   init();
-  // רענון כל 30 שניות
+  // רענון כל 15 שניות
   setInterval(async () => {
-    try { renderSigs(await loadSigs()); } catch {}
-  }, 30000);
+    try {
+      const sigs = await loadSigs();
+      localStorage.setItem('gumigum_cache', JSON.stringify(sigs));
+      renderSigs(sigs);
+    } catch {}
+  }, 15000);
 </script>
 
 </body>
