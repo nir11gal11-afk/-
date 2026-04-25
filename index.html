@@ -4,6 +4,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#1a0a2e">
 <title>עצומה: יותר גומים בגומיגם!</title>
 <link href="https://fonts.googleapis.com/css2?family=Secular+One&family=Heebo:wght@400;600;800;900&display=swap" rel="stylesheet">
 <style>
@@ -20,10 +22,16 @@
 
 - { box-sizing: border-box; margin: 0; padding: 0; }
 
+html, body {
+background: #1a0a2e !important;
+background-color: #1a0a2e !important;
+color: #ffffff !important;
+color-scheme: dark;
+-webkit-color-scheme: dark;
+}
+
 body {
 font-family: ‘Heebo’, sans-serif;
-#1a0a2e !important;
-#ffffff !important;
 min-height: 100vh;
 overflow-x: hidden;
 }
@@ -841,7 +849,7 @@ margin-bottom: 8px;
   function shareWhatsApp(e) {
     e.preventDefault();
     const count = currentDisplayed;
-    const text = `🍬 יותר גומים בגומיגם!\n\nכבר ${count} אנשים חתמו על העצומה לנסטלה!\n\nגם אתה/את רוצה יותר גומים? שלחו לי הודעה ואני אעביר לכם את הקישור לחתימה! 💪🍬`;
+    const text = `🍬 יותר גומים בגומיגם!\n\nכבר ${count} אנשים חתמו על העצומה לנסטלה!\n\nגם אתה/את רוצה יותר גומים? חתמו כאן 👇\nhttps://nir11gal11-afk.github.io/-`;
     window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
   }
 
